@@ -108,7 +108,8 @@ php-cgi, FrankenPHP, LiteSpeed).
 
 | Claim | Status |
 |---|---|
-| Differential pair boots: `php:8.5.11-apache` (vuln) vs `php:8.5.12-apache` (fixed), mod_php, single prefork worker | pending (T3) |
-| Safe differential oracle, zero crashes on both | pending (T4) |
-| Deterministic worker kill on vuln; fixed survives identical attack | pending (T5) |
-| In-lab credited RCE port | pending (T6) |
+| Differential pair boots: `php:8.5.11-apache` (vuln) vs `php:8.5.12-apache` (fixed), mod_php, single prefork worker | **verified** — `X-Worker-PID` stable across requests, `apache2handler`, both 200 (lab/README.md) |
+| Safe differential oracle, zero crashes on both | **verified** — `poc/diagnose.py`: VULNERABLE 3/3 (exit 0, pid stable) vs NOT-DETECTED 3/3 (exit 1, pid stable); groom marker `0x4848484848484840` echoed in-band; no-producer control 3/3 both |
+| Deterministic worker kill on vuln; fixed survives identical attack | **verified** — `poc/crash.py --check-fixed`: bucket arm 3/3 (SIGSEGV, `AH00052`), session arm 3/3 (SIGABRT); fixed 0/6 kills, OOM error served |
+| In-lab credited RCE port | **verified** — `exploit/rce.py`: 3/3 `RCE-RESULT: EXECUTED` as `uid=33(www-data)`, HTTP 200 with OOM error served, worker pid stable (fix `31c0ea7d7ff1` build 8.5.12 unaffected) |
+| Accounting fingerprint: immediate vs deferred OOM report | **verified** — vuln `tried to allocate 6296371` 3/3 vs fixed `6299648` 3/3, identical request, zero crashes |
