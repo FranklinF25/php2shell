@@ -1,0 +1,13 @@
+services:
+  apache:
+    image: php2shell-lab:8.5.11
+    container_name: php2shell-rce
+    ports:
+      - "29557:80"
+    # No ASLR tricks: the exploit autodetects addresses per attempt from
+    # /proc/<child-pid>/maps (read via docker compose exec; needs SYS_PTRACE,
+    # dropped by Docker's default capability set). The single prefork worker
+    # guarantees the probed pid is the one we attack, and a fresh child after
+    # a crash gets fresh maps — the exploit re-reads them on every attempt.
+    cap_add:
+      - SYS_PTRACE
