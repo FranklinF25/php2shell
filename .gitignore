@@ -1,0 +1,7 @@
+.atl
+__pycache__/
+*.pyc
+core
+core.*
+*.core
+lab/.env
