@@ -1,0 +1,20 @@
+services:
+  vuln:
+    build:
+      context: .
+      args:
+        PHP_VERSION: "8.5.11"
+    image: php2shell-lab:8.5.11
+    container_name: php2shell-vuln
+    ports:
+      - "29555:80"
+
+  fixed:
+    build:
+      context: .
+      args:
+        PHP_VERSION: "8.5.12"
+    image: php2shell-lab:8.5.12
+    container_name: php2shell-fixed
+    ports:
+      - "29556:80"
