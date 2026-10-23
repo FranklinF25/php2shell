@@ -87,10 +87,20 @@ php-cgi, FrankenPHP, LiteSpeed).
 | Measure | Blocks | Notes |
 |---|---|---|
 | `memory_limit=-1` (admin-enforced) | 109618 predictable-OOM arm | `mmap()` failure still longjmps on vulnerable builds; **never** `RLIMIT_AS`/`RLIMIT_DATA` (they trigger the same path) |
-| `session.upload_progress.enabled=0` + restart workers | 109619 session arms | does not touch OPcache/backtrace arms; feature hardly used — consider keeping off after patching |
+| `session.upload_progress.enabled=0` + restart workers | 109619 session arms | does not touch OPcache/backtrace arms; feature hardly used — **also covers CVE-2026-115560** (unpatched as of 2026-10-23): keep it off after patching until the routine release ships a fix |
 | `fatal_error_backtraces=0` (8.5) | backtrace arm | producer removal only |
 | `pm.max_requests=1` | same-worker requirement | breaks producer→consumer pairing |
 | Frontend: bound decoded body size, multipart parts/headers/uploads, `max_input_nesting_level` | OOM strategies | keeps working post-patch as DoS hygiene |
+
+> **CVE-2026-115560 (disclosed 2026-10-23) — related, out of scope.** Separate
+> unpatched session-upload-progress RCE affecting apps that set
+> `session.serialize_handler` to `php_binary`/`php_serialize` in config and then
+> `ini_set()` it to `php` before `session_start()`. No fix commit, no CVSS, no
+> observed exploitation; the vendor has not said whether it shares a root cause
+> with the four instances above, so nothing here can be verified against a
+> fixed build yet. The `session.upload_progress.enabled=0` row covers it.
+> Revisit when the routine release + full advisory land (fix commit →
+> differential pair → detector is runnable then).
 
 ## Detection signatures (defenders)
 
