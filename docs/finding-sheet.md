@@ -95,12 +95,30 @@ php-cgi, FrankenPHP, LiteSpeed).
 > **CVE-2026-115560 (disclosed 2026-10-23) — related, out of scope.** Separate
 > unpatched session-upload-progress RCE affecting apps that set
 > `session.serialize_handler` to `php_binary`/`php_serialize` in config and then
-> `ini_set()` it to `php` before `session_start()`. No fix commit, no CVSS, no
-> observed exploitation; the vendor has not said whether it shares a root cause
-> with the four instances above, so nothing here can be verified against a
-> fixed build yet. The `session.upload_progress.enabled=0` row covers it.
-> Revisit when the routine release + full advisory land (fix commit →
-> differential pair → detector is runnable then).
+> `ini_set()` it to `php` before `session_start()`. **Not covered by the 21 Oct
+> emergency releases** — `8.2.35/8.3.36/8.4.27/8.5.12` all remain affected under
+> that configuration; the fix ships with the next regular bugfix release. Still
+> no fix commit, CVSS or GHSA (a circulating "9.2" belongs to 109619), and no
+> observed exploitation of this CVE specifically. The mechanism is now public
+> via a third-party PoC
+> ([basesixtythree/B63-POC-CVE-2026-115560](https://github.com/basesixtythree/B63-POC-CVE-2026-115560),
+> lab-verified against *patched* 8.5.12, mod_php prefork): **serializer
+> confusion, not a UAF** — the rfc1867 upload hook writes the upload-progress
+> record under the *configured* serializer before the session module
+> initializes for the request; the runtime switch to `php` makes the decoder
+> split records on the first `|`, and an attacker-supplied `|` (uploaded
+> filename / progress key) hands `php_var_unserialize()` attacker bytes with
+> autoloading and destructors enabled → arbitrary object injection → a
+> file-writing `__destruct()` gadget drops a webshell. Reported reliability:
+> 5/5 direct (`session.upload_progress.cleanup=0`) and 10/10 racing the
+> streaming window on the default `cleanup=1`, both arms also verified with
+> `php_serialize`; configuration negatives break the chain 4/4. Shares the
+> upload-progress surface with the session arm above but is a different bug
+> class (insecure deserialization via handler confusion, not CWE-416), so the
+> `session.upload_progress.enabled=0` row still covers it and vendors are
+> flipping that default already (Kusanagi 8.3.36-2, 2026-10-25). Revisit when
+> the routine release + full advisory land (fix commit → differential pair →
+> detector is runnable then).
 
 ## Detection signatures (defenders)
 
@@ -112,7 +130,14 @@ php-cgi, FrankenPHP, LiteSpeed).
 
 ## Lineage (why "decades-old")
 
-2004 — Stefan Esser's [first PHP memory-limit remote vulnerability](https://marc.info/?l=bugtraq&m=108981780109154&w=2) · 2020 — [bug #78876](https://bugs.php.net/bug.php?id=78876) (`jr@coredu.mp`, patch [`3c8582ca`](https://github.com/php/php-src/commit/3c8582ca4b8e84e5647220b647914876d2c3b124), later imported into HHVM) · 2024 — OSTIF/Quarkslab audit finds a related issue, exploitation unproven (`security-audit-2024` tag) · 2026-08 — Calif (Aug 1) and Wiz (Aug 19, AI-assisted) independently reach RCE · 2026-10-21 — coordinated disclosure + fixed releases.
+2004 — Stefan Esser's [first PHP memory-limit remote vulnerability](https://marc.info/?l=bugtraq&m=108981780109154&w=2) · 2020 — [bug #78876](https://bugs.php.net/bug.php?id=78876) (`jr@coredu.mp`, patch [`3c8582ca`](https://github.com/php/php-src/commit/3c8582ca4b8e84e5647220b647914876d2c3b124), later imported into HHVM) · 2024 — OSTIF/Quarkslab audit finds a related issue, exploitation unproven (`security-audit-2024` tag) · 2026-08 — Calif (Aug 1) and Wiz (Aug 19, AI-assisted) independently reach RCE · 2026-10-17 — earliest known exploitation attempt, pre-disclosure (see below) · 2026-10-21 — coordinated disclosure + fixed releases · 2026-10-23 — third related CVE (2026-115560) disclosed.
+
+## Post-disclosure exploitation (observed through 2026-10-25)
+
+- **2026-10-17 — pre-disclosure attempt.** Amazon [MadPot](https://aws.amazon.com/blogs/security/amazon-threat-intelligence-identifies-php2shell-exploitation-prior-to-public-disclosure-in-madpot/) telemetry recorded a CVE-2026-109618 exploit probe **four days before public disclosure**, from an IP on a commercial anonymization network — someone held working knowledge during embargo; acquisition path unknown.
+- **PoCs public within hours** of the 21 Oct release; technical discussion in the open. Weaponization is non-trivial (per-build adaptation; [CrowdStrike](https://www.crowdstrike.com/en-us/blog/obstacles-to-weaponizing-php2shell-likely-constrain-exploitation/) and [NCSC-NL](https://www.ncsc.nl/en/alerts/update-php-vulnerabilities-remain-a-reason-for-immediate-patching/) both note complexity).
+- **Scale:** [CrowdSec](https://tracker.crowdsec.net/cves/CVE-2026-109618) — 508 IPs over 30d, first seen 2026-10-21, still active 2026-10-25 ("moderate targeting or momentum"); [Delft Threat Intelligence Lab](https://php2shell.delftintellab.com/) runs a live honeypot feed.
+- **No confirmed compromise yet.** [Sophos](https://www.sophos.com/en-us/blog/proof-of-concept-exploit-released-for-php-vulnerabilities-109618-109619) initially reported successful customer exploitation, then **corrected itself on 2026-10-22**: scanning and a small number of *failed* attempts carrying a likely Mirai-variant payload. NCSC-NL (2026-10-23) knows one unconfirmed foreign report. CISA (alert revised 2026-10-23: added Sigma rule) has not observed successful exploitation.
 
 ## Lab verification status
 
